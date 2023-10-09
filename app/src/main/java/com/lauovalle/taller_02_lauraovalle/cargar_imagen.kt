@@ -22,7 +22,7 @@ class cargar_imagen : AppCompatActivity() {
         setContentView(view)
 
         binding.botonTake.setOnClickListener{
-
+            // hola
         }
 
     }
