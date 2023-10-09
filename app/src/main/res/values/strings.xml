@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Taller_02_LauraOvalle</string>
+    <string name="pick_from_gallery">PICK FROM GALLERY</string>
+    <string name="take">TAKE</string>
+    <string name="video">Video</string>
 </resources>
