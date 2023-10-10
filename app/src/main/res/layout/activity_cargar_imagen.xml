@@ -78,7 +78,7 @@
         android:id="@+id/botonPick"
         android:layout_width="150dp"
         android:layout_height="40dp"
-        android:background="#94CCF8"
+        android:background="#A0C575"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -87,10 +87,9 @@
         <ImageView
             android:layout_width="63dp"
             android:layout_height="wrap_content"
+            android:contentDescription="@string/galeria"
             android:scaleType="centerInside"
-            android:src="@mipmap/galeria"
-            android:contentDescription="@string/galeria">
-        </ImageView>
+            android:src="@mipmap/galeria"></ImageView>
 
         <TextView
             android:layout_width="86dp"
