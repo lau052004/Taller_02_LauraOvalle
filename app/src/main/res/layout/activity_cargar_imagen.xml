@@ -4,42 +4,55 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".cargar_imagen">
+    tools:context=".cargar_imagen"
+    android:layout_margin="15dp">
 
     <Switch
         android:id="@+id/switchToggle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="sans-serif-black"
-        android:text="Video"
+        android:text="@string/video1"
         android:textSize="15sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.846"
+        app:layout_constraintHorizontal_bias="0.858"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.09" />
+        app:layout_constraintVertical_bias="0.04" />
 
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="300dp"
         android:layout_height="500dp"
-        android:background="@color/material_dynamic_neutral30"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.495"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/switchToggle"
-        app:layout_constraintVertical_bias="0.177"></ImageView>
+        app:layout_constraintVertical_bias="0.177"
+        android:contentDescription="@string/imageview1"></ImageView>
+
+    <VideoView
+        android:id="@+id/videoView"
+        android:layout_width="300dp"
+        android:layout_height="500dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.495"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/switchToggle"
+        app:layout_constraintVertical_bias="0.177"></VideoView>
 
     <LinearLayout
         android:id="@+id/botonTake"
-        android:layout_width="200dp"
+        android:layout_width="150dp"
         android:layout_height="40dp"
         android:background="#94CCF8"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageView">
 
@@ -47,45 +60,45 @@
             android:layout_width="63dp"
             android:layout_height="wrap_content"
             android:scaleType="centerInside"
+            android:src="@mipmap/camara2"
+            android:contentDescription="@string/image2"
             ></ImageView>
 
         <TextView
-            android:layout_width="132dp"
+            android:layout_width="86dp"
             android:layout_height="match_parent"
             android:fontFamily="sans-serif-black"
             android:gravity="center"
-            android:text="TAKE"
+            android:text="@string/take1"
             android:textColor="@color/black"></TextView>
-
     </LinearLayout>
 
 
     <LinearLayout
         android:id="@+id/botonPick"
-        android:layout_width="200dp"
+        android:layout_width="150dp"
         android:layout_height="40dp"
         android:background="#94CCF8"
         android:orientation="horizontal"
-
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/botonTake"
         app:layout_constraintTop_toBottomOf="@+id/imageView">
 
         <ImageView
             android:layout_width="63dp"
             android:layout_height="wrap_content"
             android:scaleType="centerInside"
-            ></ImageView>
+            android:src="@mipmap/galeria"
+            android:contentDescription="@string/galeria">
+        </ImageView>
 
         <TextView
-            android:layout_width="132dp"
+            android:layout_width="86dp"
             android:layout_height="match_parent"
             android:fontFamily="sans-serif-black"
             android:gravity="center"
-            android:text="TAKE"
+            android:text="@string/pick_from_gallery1"
             android:textColor="@color/black"></TextView>
-
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
