@@ -3,4 +3,13 @@
     <string name="pick_from_gallery">PICK FROM GALLERY</string>
     <string name="take">TAKE</string>
     <string name="video">Video</string>
+    <string name="c_mara">Cámara</string>
+    <string name="mapa">Mapa</string>
+    <string name="imagencamara">imagencamara</string>
+    <string name="video1">Video</string>
+    <string name="imageview1">imageview1</string>
+    <string name="image2">image2</string>
+    <string name="take1">TAKE</string>
+    <string name="galeria">galeria</string>
+    <string name="pick_from_gallery1">PICK FROM GALLERY</string>
 </resources>
