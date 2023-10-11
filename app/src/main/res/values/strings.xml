@@ -12,4 +12,5 @@
     <string name="take1">TAKE</string>
     <string name="galeria">galeria</string>
     <string name="pick_from_gallery1">PICK FROM GALLERY</string>
+    <string name="title_activity_maps">MapsActivity</string>
 </resources>

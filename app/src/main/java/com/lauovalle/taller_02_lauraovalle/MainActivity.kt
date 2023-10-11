@@ -24,5 +24,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(miIntent)
         }
 
+        // --------------------  INTENT
+        binding.imagenMapa.setOnClickListener{
+            val miIntent2 = Intent(this, MapsActivity::class.java)
+            startActivity(miIntent2)
+        }
     }
 }
