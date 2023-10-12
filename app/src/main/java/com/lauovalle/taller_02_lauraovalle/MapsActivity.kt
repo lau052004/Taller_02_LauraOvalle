@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -32,20 +33,22 @@ import kotlinx.coroutines.launch
 import java.util.logging.Logger
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
+    companion object {
+        val REQUEST_CODE_LOCATION = 0
+        val TAG: String = MapsActivity::class.java.name
+    }
+
     // GLOBALES ----------------------------------------------------------------
     private lateinit var binding: ActivityMapsBinding
     private lateinit var mMap: GoogleMap
     private val locationService:LocationService = LocationService()
-    private lateinit var mGeocoder: Geocoder
     lateinit var sensorManager: SensorManager
     lateinit var lightSensor: Sensor
     lateinit var lightSensorListener: SensorEventListener
+    private lateinit var mGeocoder: Geocoder
     lateinit var mAddress: EditText
-
-    companion object {
-        val REQUEST_CODE_LOCATION = 0
-        val TAG: String = cargar_imagen::class.java.name
-    }
+    // Añade una variable para controlar si el mapa está listo
+    private var isMapReady = false
 
 
     private val logger = Logger.getLogger(TAG)
@@ -68,24 +71,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-    }
-
-    // ON_CREATE ----------------------------------------------------------------
-    override fun onMapReady(googleMap: GoogleMap) {
-        mMap = googleMap
-        mMap.moveCamera(CameraUpdateFactory.zoomTo(20f))
-        mMap.uiSettings.setAllGesturesEnabled(true)
-        /// Add UI controls
-        mMap.uiSettings.isZoomControlsEnabled = true
-        mMap.uiSettings.isMapToolbarEnabled = true
-
-        verifyPermissions(this, android.Manifest.permission.ACCESS_FINE_LOCATION, "El permiso es requerido para poder mostrar tu ubicación en el mapa")
-
 
         // Initialize the sensors
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)!!
-
 
         // Initialize the listener
         lightSensorListener = object : SensorEventListener {
@@ -110,9 +99,44 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     }
                 }
             }
+
             override fun onAccuracyChanged(sensor: Sensor, i: Int) {}
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        if(isMapReady)
+        {
+            sensorManager.registerListener(
+                lightSensorListener,
+                lightSensor,
+                SensorManager.SENSOR_DELAY_NORMAL
+            )
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if(isMapReady)
+        {
+            sensorManager.unregisterListener(lightSensorListener)
+        }
+    }
+
+    // ON_CREATE ----------------------------------------------------------------
+    override fun onMapReady(googleMap: GoogleMap) {
+        mMap = googleMap
+        isMapReady = true
+        mMap.moveCamera(CameraUpdateFactory.zoomTo(20f))
+        mMap.uiSettings.setAllGesturesEnabled(true)
+        /// Add UI controls
+        mMap.uiSettings.isZoomControlsEnabled = true
+        mMap.uiSettings.isMapToolbarEnabled = true
+
+        verifyPermissions(this, android.Manifest.permission.ACCESS_FINE_LOCATION, "El permiso es requerido para poder mostrar tu ubicación en el mapa")
+    }
+
 
     private fun verifyPermissions(context: Context, permission: String, rationale: String) {
         when {
