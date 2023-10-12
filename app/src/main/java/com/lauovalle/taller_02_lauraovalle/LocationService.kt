@@ -10,7 +10,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.model.PolylineOptions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -48,4 +50,10 @@ class LocationService {
             }
         }
     }
+
+    //suspend fun getRoute(context: Context) {
+        //private lateinit var locationCallback: LocationCallback
+        //private var polylineOptions = PolylineOptions()
+
+    //}
 }

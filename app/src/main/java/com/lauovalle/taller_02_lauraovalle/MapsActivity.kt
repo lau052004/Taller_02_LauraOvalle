@@ -4,10 +4,16 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.location.Geocoder
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
@@ -18,6 +24,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.snackbar.Snackbar
 import com.lauovalle.taller_02_lauraovalle.databinding.ActivityMapsBinding
@@ -29,12 +36,26 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityMapsBinding
     private lateinit var mMap: GoogleMap
     private val locationService:LocationService = LocationService()
-    val TAG = MapsActivity::javaClass
-
+    private lateinit var mGeocoder: Geocoder
+    lateinit var sensorManager: SensorManager
+    lateinit var lightSensor: Sensor
+    lateinit var lightSensorListener: SensorEventListener
+    lateinit var mAddress: EditText
 
     companion object {
         val REQUEST_CODE_LOCATION = 0
+        val TAG: String = cargar_imagen::class.java.name
     }
+
+
+    private val logger = Logger.getLogger(TAG)
+
+    // Permission handler
+    private val getSimplePermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()) {
+        updateUI(it)
+    }
+
 
     // ON_CREATE ----------------------------------------------------------------
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,75 +79,84 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap.uiSettings.isZoomControlsEnabled = true
         mMap.uiSettings.isMapToolbarEnabled = true
 
-        enableLocation()
+        verifyPermissions(this, android.Manifest.permission.ACCESS_FINE_LOCATION, "El permiso es requerido para poder mostrar tu ubicación en el mapa")
 
-        lifecycleScope.launch {
-            val result = locationService.getUserLocation(this@MapsActivity)
-            if(result!=null)
-            {
-                val ubicacion = LatLng(result.latitude, result.longitude)
-                mMap.addMarker(MarkerOptions().position(ubicacion).title("Marker in my actual position ${result.latitude} ${result.longitude}"))
-                mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
+
+        // Initialize the sensors
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)!!
+
+
+        // Initialize the listener
+        lightSensorListener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                if (mMap != null) {
+                    if (event.values[0] < 5000) {
+                        Log.i("MAPS", "DARK MAP " + event.values[0])
+                        mMap.setMapStyle(
+                            MapStyleOptions.loadRawResourceStyle(
+                                this@MapsActivity,
+                                R.raw.style_night
+                            )
+                        )
+                    } else {
+                        Log.i("MAPS", "LIGHT MAP " + event.values[0])
+                        mMap.setMapStyle(
+                            MapStyleOptions.loadRawResourceStyle(
+                                this@MapsActivity,
+                                R.raw.style_day_retro
+                            )
+                        )
+                    }
+                }
             }
-        }
-
-        // Add a marker in Sydney and move the camera
-        //val sydney = LatLng(-34.0, 151.0)
-        //mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-        //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
-    }
-
-    private fun isLocationPermissionGranted() = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-
-    @SuppressLint("MissingPermission")
-    private fun enableLocation(){
-        if(!::mMap.isInitialized) return
-        if(isLocationPermissionGranted()){
-            mMap.isMyLocationEnabled = true
-        }
-        else {
-            Toast.makeText(this, "Para activar ve a ajustes y acepta los permisos", Toast.LENGTH_SHORT).show()
+            override fun onAccuracyChanged(sensor: Sensor, i: Int) {}
         }
     }
 
-
-    private fun requestLocationPermission(){
-        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.ACCESS_FINE_LOCATION)){
-            Toast.makeText(this, "Entra a ajustes y acepta los permisos", Toast.LENGTH_SHORT).show()
-        } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),REQUEST_CODE_LOCATION)
-        }
-    }
-
-
-    @SuppressLint("MissingPermission")
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when(requestCode){
-            REQUEST_CODE_LOCATION -> if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
-            {
-                mMap.isMyLocationEnabled = true
-            } else {
-                Toast.makeText(this, "Para activar ve a ajustes y acepta los permisos", Toast.LENGTH_SHORT).show()
+    private fun verifyPermissions(context: Context, permission: String, rationale: String) {
+        when {
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED -> {
+                Snackbar.make(binding.root, "Ya tengo los permisos 😜", Snackbar.LENGTH_LONG).show()
+                updateUI(true)
             }
-            // Si acepta otro permiso
+            shouldShowRequestPermissionRationale(permission) -> {
+                // We display a snackbar with the justification for the permission, and once it disappears, we request it again.
+                val snackbar = Snackbar.make(binding.root, rationale, Snackbar.LENGTH_LONG)
+                snackbar.addCallback(object : Snackbar.Callback() {
+                    override fun onDismissed(snackbar: Snackbar, event: Int) {
+                        if (event == DISMISS_EVENT_TIMEOUT) {
+                            getSimplePermission.launch(permission)
+                        }
+                    }
+                })
+                snackbar.show()
+            }
             else -> {
-                Log.i(TAG.toString(), "Se han aceptado otros permisos")
+                getSimplePermission.launch(permission)
             }
         }
     }
 
+    // Update activity behavior and actions according to result of permission request
     @SuppressLint("MissingPermission")
-    override fun onResumeFragments() {
-        super.onResumeFragments()
-        if(!::mMap.isInitialized) return
-        if(!isLocationPermissionGranted()){
+    fun updateUI(permission : Boolean) {
+        if (permission) {
+            //granted
+            logger.info("Permission granted")
+            mMap.isMyLocationEnabled = true
+            lifecycleScope.launch {
+                val result = locationService.getUserLocation(this@MapsActivity)
+                if(result!=null)
+                {
+                    val ubicacion = LatLng(result.latitude, result.longitude)
+                    mMap.addMarker(MarkerOptions().position(ubicacion).title("Marker in my actual position ${result.latitude} ${result.longitude}"))
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
+                }
+            }
+        } else {
+            logger.warning("Permission denied")
             mMap.isMyLocationEnabled = false
-            Toast.makeText(this, "Para activar ve a ajustes y acepta los permisos", Toast.LENGTH_SHORT).show()
         }
     }
 }
