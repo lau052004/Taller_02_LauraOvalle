@@ -10,8 +10,15 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.PolylineOptions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -19,41 +26,81 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocationService {
     @SuppressLint("MissingPermission")
-    suspend fun getUserLocation(context: Context):Location?{
+    suspend fun getUserLocation(context: Context): Location? {
         val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
         val isUserLocationPermissionGranted = true
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val isGPSEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-        if(!isGPSEnabled || !isUserLocationPermissionGranted){
+        val isGPSEnabled =
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) || locationManager.isProviderEnabled(
+                LocationManager.GPS_PROVIDER
+            )
+        if (!isGPSEnabled || !isUserLocationPermissionGranted) {
             return null
         }
 
         return suspendCancellableCoroutine { cont ->
             fusedLocationProviderClient.lastLocation.apply {
-                if (isComplete){
-                    if(isSuccessful){
-                        cont.resume(result){}
+                if (isComplete) {
+                    if (isSuccessful) {
+                        cont.resume(result) {}
                     } else {
-                        cont.resume(null){}
+                        cont.resume(null) {}
                     }
                     return@suspendCancellableCoroutine
                 }
                 addOnSuccessListener {
-                    cont.resume(it){}
+                    cont.resume(it) {}
                 }
-                addOnFailureListener{
-                    cont.resume(null){}
+                addOnFailureListener {
+                    cont.resume(null) {}
                 }
                 addOnCanceledListener {
-                    cont.resume(null){}
+                    cont.resume(null) {}
                 }
             }
         }
     }
 
-    //suspend fun getRoute(context: Context) {
-        //private lateinit var locationCallback: LocationCallback
-        //private var polylineOptions = PolylineOptions()
+    @SuppressLint("MissingPermission")
+    suspend fun getRoute(context: Context, mMap: GoogleMap) {
+        var fusedLocationClient: FusedLocationProviderClient
+        var locationCallback: LocationCallback
+        var polylineOptions = PolylineOptions()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.locations.forEach { location ->
+                    // Obtén la nueva ubicación
+                    val latLng = LatLng(location.latitude, location.longitude)
 
-    //}
+                    // Agrega el punto a PolylineOptions
+                    polylineOptions.add(latLng)
+
+                    // Dibuja el Polyline en el mapa
+                    mMap.addPolyline(polylineOptions)
+
+                    // Mueve la cámara al nuevo punto
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+                }
+            }
+        }
+
+        val locationRequest = LocationRequest.create().apply {
+            interval = 10000 // Intervalo de actualización de ubicación en milisegundos
+            fastestInterval = 5000
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        }
+
+        val builder = LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+
+        // Verifica la configuración de ubicación
+        val client = LocationServices.getSettingsClient(context)
+        val task = client.checkLocationSettings(builder.build())
+
+        task.addOnSuccessListener {
+            // Configuración de ubicación aceptada, comienza la actualización
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
+        }
+    }
 }

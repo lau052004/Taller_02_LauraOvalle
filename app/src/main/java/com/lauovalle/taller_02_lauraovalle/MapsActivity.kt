@@ -153,6 +153,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     mMap.addMarker(MarkerOptions().position(ubicacion).title("Marker in my actual position ${result.latitude} ${result.longitude}"))
                     mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
                 }
+                locationService.getRoute(this@MapsActivity,mMap)
             }
         } else {
             logger.warning("Permission denied")
