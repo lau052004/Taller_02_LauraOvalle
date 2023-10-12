@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,17 +25,23 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.snackbar.Snackbar
 import com.lauovalle.taller_02_lauraovalle.databinding.ActivityMapsBinding
 import kotlinx.coroutines.launch
+import java.io.IOException
 import java.util.logging.Logger
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     companion object {
         val REQUEST_CODE_LOCATION = 0
+        const val lowerLeftLatitude = 40.65129083311869
+        const val lowerLeftLongitude = -74.08836562217077
+        const val upperRightLatitude = 40.89464984144272
+        const val upperRightLongitude = -73.82023056066367
         val TAG: String = MapsActivity::class.java.name
     }
 
@@ -49,6 +56,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     lateinit var mAddress: EditText
     // Añade una variable para controlar si el mapa está listo
     private var isMapReady = false
+    private var findingAdress = false
 
 
     private val logger = Logger.getLogger(TAG)
@@ -71,6 +79,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        mAddress = binding.address
+        mAddress.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                findingAdress = true
+                findAddress()
+            }
+            false
+        }
 
         // Initialize the sensors
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -102,6 +119,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
             override fun onAccuracyChanged(sensor: Sensor, i: Int) {}
         }
+        // Initialize the geocoder
+        mGeocoder = Geocoder(baseContext)
+
     }
 
     override fun onResume() {
@@ -137,6 +157,44 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         verifyPermissions(this, android.Manifest.permission.ACCESS_FINE_LOCATION, "El permiso es requerido para poder mostrar tu ubicación en el mapa")
     }
 
+    fun search(view: View?) {
+        mMap.clear()
+        findAddress()
+    }
+
+    private fun findAddress() {
+        val addressString = mAddress.text.toString()
+        if (addressString.isNotEmpty()) {
+            try {
+                val addresses = mGeocoder.getFromLocationName(
+                    addressString, 3
+                )
+                if (addresses != null && !addresses.isEmpty()) {
+                    val addressResult = addresses[0]
+                    val position = LatLng(addressResult.latitude, addressResult.longitude)
+                    mMap.addMarker(
+                        MarkerOptions().position(position)
+                            .title(addressResult.featureName)
+                            .snippet(addressResult.getAddressLine(0))
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                    )
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
+                } else {
+                    Toast.makeText(
+                        this@MapsActivity,
+                        "Dirección no encontrada",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        } else {
+            Toast.makeText(this@MapsActivity, "La dirección está vacía", Toast.LENGTH_SHORT)
+                .show()
+        }
+    }
+
 
     private fun verifyPermissions(context: Context, permission: String, rationale: String) {
         when {
@@ -169,15 +227,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             //granted
             logger.info("Permission granted")
             mMap.isMyLocationEnabled = true
-            lifecycleScope.launch {
-                val result = locationService.getUserLocation(this@MapsActivity)
-                if(result!=null)
-                {
-                    val ubicacion = LatLng(result.latitude, result.longitude)
-                    mMap.addMarker(MarkerOptions().position(ubicacion).title("Marker in my actual position ${result.latitude} ${result.longitude}"))
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
+
+            if(findingAdress==false){
+                lifecycleScope.launch {
+                    val result = locationService.getUserLocation(this@MapsActivity)
+                    if(result!=null)
+                    {
+                        val ubicacion = LatLng(result.latitude, result.longitude)
+                        mMap.addMarker(MarkerOptions().position(ubicacion).title("Marker in my actual position ${result.latitude} ${result.longitude}"))
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
+                    }
+                    locationService.getRoute(this@MapsActivity,mMap)
                 }
-                locationService.getRoute(this@MapsActivity,mMap)
             }
         } else {
             logger.warning("Permission denied")
