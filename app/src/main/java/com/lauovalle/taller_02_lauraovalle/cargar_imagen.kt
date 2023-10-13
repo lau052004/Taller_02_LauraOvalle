@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -195,9 +196,11 @@ class cargar_imagen : AppCompatActivity() {
 
     private fun dispatchTakeVideoIntent() {
         val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
-        if (intent.resolveActivity(packageManager) != null) {
+        //Toast.makeText(this,"hasta aqui",Toast.LENGTH_SHORT).show()
+        // if (intent.resolveActivity(packageManager) != null) {
+            Toast.makeText(this,"hasta aqui 2",Toast.LENGTH_SHORT).show()
             startActivityForResult(intent, REQUEST_VIDEO_CAPTURE)
-        }
+        //}
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
