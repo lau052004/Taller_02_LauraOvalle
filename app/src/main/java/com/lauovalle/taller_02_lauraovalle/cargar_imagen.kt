@@ -60,15 +60,24 @@ class cargar_imagen : AppCompatActivity() {
     }
 
     //--------------------------------------------------------
-    val pickMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) {uri ->
-        if(uri!=null){
-            // Imagen seleccionada
-            binding.imageView.setImageURI(uri)
-        } else {
-            // No imagen
-            Log.INFO
+    val pickMedia = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data: Intent? = result.data
+            val mediaUri: Uri? = data?.data
+
+            if (binding.switchToggle.isChecked && mediaUri != null) {
+                binding.imageView.visibility = View.INVISIBLE
+                binding.videoView.visibility = View.VISIBLE
+                binding.videoView.setVideoURI(mediaUri)
+                binding.videoView.start()
+            } else if (!binding.switchToggle.isChecked && mediaUri != null) {
+                binding.imageView.visibility = View.VISIBLE
+                binding.videoView.visibility = View.INVISIBLE
+                binding.imageView.setImageURI(mediaUri)
+            }
         }
     }
+
     //--------------------------------------------------------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,9 +91,22 @@ class cargar_imagen : AppCompatActivity() {
 
         // Pick Image from gallery
         binding.botonPick.setOnClickListener{
-            binding.imageView.visibility = View.VISIBLE
-            binding.videoView.visibility = View.INVISIBLE
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            if(binding.switchToggle.isChecked)
+            {
+                binding.imageView.visibility = View.INVISIBLE
+                binding.videoView.visibility = View.VISIBLE
+                val pickVideoIntent = Intent(Intent.ACTION_PICK, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+                pickMedia.launch(pickVideoIntent)
+
+                //pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+            }
+            else{
+                binding.imageView.visibility = View.VISIBLE
+                binding.videoView.visibility = View.INVISIBLE
+                val pickImageIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                pickMedia.launch(pickImageIntent)
+                //pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
         }
 
         // Take photo or video

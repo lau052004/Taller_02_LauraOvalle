@@ -10,8 +10,10 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Geocoder
+import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -21,6 +23,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -29,9 +32,15 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.Polyline
+import com.google.android.gms.maps.model.PolylineOptions
 import com.google.android.material.snackbar.Snackbar
 import com.lauovalle.taller_02_lauraovalle.databinding.ActivityMapsBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
 import java.util.logging.Logger
 
@@ -56,7 +65,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     lateinit var mAddress: EditText
     // Añade una variable para controlar si el mapa está listo
     private var isMapReady = false
-    private var findingAdress = false
+    private var isFirstLaunch = true
+    // Para crear la ruta entre dos puntos
+    private var start: String =""
+    private var end: String =""
+    private var poly: Polyline? = null
 
 
     private val logger = Logger.getLogger(TAG)
@@ -83,7 +96,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mAddress = binding.address
         mAddress.setOnEditorActionListener { v, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
-                findingAdress = true
                 findAddress()
             }
             false
@@ -124,6 +136,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+
     override fun onResume() {
         super.onResume()
         if(isMapReady)
@@ -155,10 +168,62 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap.uiSettings.isMapToolbarEnabled = true
 
         verifyPermissions(this, android.Manifest.permission.ACCESS_FINE_LOCATION, "El permiso es requerido para poder mostrar tu ubicación en el mapa")
+
+        mMap.setOnMapLongClickListener { latLng ->
+            // Aquí se ejecutará cuando se haga un clic largo en el mapa
+            createMarkerAtLocation(latLng)
+        }
+
+        binding.calcularRuta.setOnClickListener{
+            end = ""
+            poly?.remove()
+            if(poly!=null){
+                poly = null
+            }
+            Toast.makeText(this,"Selecciona punto de destino", Toast.LENGTH_SHORT).show()
+            mMap.setOnMapClickListener {
+                if(start.isNotEmpty())
+                {
+                    end = "${it.longitude},${it.latitude}"
+                    crateRouteBetween()
+                }
+            }
+        }
+    }
+
+
+
+    private fun createMarkerAtLocation(latLng: LatLng) {
+        val addresses = mGeocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+
+        if (addresses != null) {
+            if (addresses.isNotEmpty()) {
+                val address = addresses[0]
+                val addressText = address.getAddressLine(0)
+
+                // Agrega un marcador en la posición del evento y usa la dirección como título
+                mMap.addMarker(
+                    MarkerOptions()
+                        .position(latLng)
+                        .title(addressText)
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                )
+
+                // Mueve la cámara a la posición del marcador
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+            } else {
+                // Si no se pudo obtener la dirección, agrega un marcador sin título
+                mMap.addMarker(
+                    MarkerOptions()
+                        .position(latLng)
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                )
+            }
+        }
+
     }
 
     fun search(view: View?) {
-        mMap.clear()
         findAddress()
     }
 
@@ -178,7 +243,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                             .snippet(addressResult.getAddressLine(0))
                             .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
                     )
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 15f))
+                    //mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
                 } else {
                     Toast.makeText(
                         this@MapsActivity,
@@ -194,6 +260,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 .show()
         }
     }
+
 
 
     private fun verifyPermissions(context: Context, permission: String, rationale: String) {
@@ -222,27 +289,67 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // Update activity behavior and actions according to result of permission request
     @SuppressLint("MissingPermission")
-    fun updateUI(permission : Boolean) {
+    fun updateUI(permission: Boolean) {
         if (permission) {
-            //granted
+            // granted
             logger.info("Permission granted")
-            mMap.isMyLocationEnabled = true
+            if(binding.mover.isChecked)
+            {
+                mMap.isMyLocationEnabled = true
+            }
 
-            if(findingAdress==false){
-                lifecycleScope.launch {
-                    val result = locationService.getUserLocation(this@MapsActivity)
-                    if(result!=null)
-                    {
-                        val ubicacion = LatLng(result.latitude, result.longitude)
-                        mMap.addMarker(MarkerOptions().position(ubicacion).title("Marker in my actual position ${result.latitude} ${result.longitude}"))
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
-                    }
-                    locationService.getRoute(this@MapsActivity,mMap)
+            val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+            fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
+                if (location != null && isFirstLaunch) {
+                    val ubicacion = LatLng(location.latitude, location.longitude)
+                    mMap.addMarker(
+                        MarkerOptions().position(ubicacion)
+                            .title("Marker in my actual position ${location.latitude} ${location.longitude}")
+                    )
+                    start = "${location.longitude},${location.latitude}"
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
+                    isFirstLaunch = false // set it to false after moving the camera initially
                 }
             }
+
+            lifecycleScope.launch {
+                locationService.getRoute(this@MapsActivity, mMap)
+            }
+
         } else {
             logger.warning("Permission denied")
             mMap.isMyLocationEnabled = false
+            binding.mover.isEnabled = false
         }
+    }
+
+    private fun crateRouteBetween() {
+        CoroutineScope(Dispatchers.IO).launch{
+            val call = getRetrofit().create(ApiService::class.java)
+                .getRoute("5b3ce3597851110001cf6248cbef574c40e34749865dc70189b066a8", start, end)
+            if(call.isSuccessful)
+            {
+                drawRoute(call.body())
+                call.body()
+            } else {
+                Log.i("lau",":( MAL")
+            }
+        }
+    }
+
+    private fun drawRoute(routeResponse: RouteResponse?) {
+        val polylineOptions = PolylineOptions()
+        routeResponse?.features?.first()?.geometry?.coordinates?.forEach{
+            polylineOptions.add(LatLng(it[1],it[0]))
+        }
+        runOnUiThread{
+            poly = mMap.addPolyline(polylineOptions)
+        }
+    }
+
+    private fun getRetrofit():Retrofit{
+        return Retrofit.Builder().baseUrl("https://api.openrouteservice.org/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
     }
 }
