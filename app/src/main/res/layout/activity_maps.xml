@@ -54,6 +54,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/mover"
+        android:background="@drawable/roundedbox"
         android:text="Mover el mapa con la pocisión del usuario"
         map:layout_constraintBottom_toBottomOf="@+id/linearLayout"
         map:layout_constraintEnd_toEndOf="parent"
@@ -71,7 +72,7 @@
         android:text="Calcular Ruta"
         map:layout_constraintBottom_toBottomOf="@+id/map"
         map:layout_constraintEnd_toEndOf="parent"
-        map:layout_constraintHorizontal_bias="0.928"
+        map:layout_constraintHorizontal_bias="0.071"
         map:layout_constraintStart_toStartOf="parent"></Button>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

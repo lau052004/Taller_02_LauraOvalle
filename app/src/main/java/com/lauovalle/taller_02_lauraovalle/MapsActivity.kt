@@ -23,7 +23,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -57,7 +62,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     // GLOBALES ----------------------------------------------------------------
     private lateinit var binding: ActivityMapsBinding
     private lateinit var mMap: GoogleMap
-    private val locationService:LocationService = LocationService()
     lateinit var sensorManager: SensorManager
     lateinit var lightSensor: Sensor
     lateinit var lightSensorListener: SensorEventListener
@@ -137,6 +141,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+
     override fun onResume() {
         super.onResume()
         if(isMapReady)
@@ -172,6 +177,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap.setOnMapLongClickListener { latLng ->
             // Aquí se ejecutará cuando se haga un clic largo en el mapa
             createMarkerAtLocation(latLng)
+        }
+
+        if(isMapReady)
+        {
+            sensorManager.registerListener(
+                lightSensorListener,
+                lightSensor,
+                SensorManager.SENSOR_DELAY_NORMAL
+            )
         }
 
         binding.calcularRuta.setOnClickListener{
@@ -293,14 +307,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         if (permission) {
             // granted
             logger.info("Permission granted")
-            if(binding.mover.isChecked)
-            {
-                mMap.isMyLocationEnabled = true
-            }
+            mMap.isMyLocationEnabled = true
 
-            val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-            fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if (location != null && isFirstLaunch) {
+
+
+            var fusedLocationClient: FusedLocationProviderClient
+            var locationCallback: LocationCallback
+            var polylineOptions = PolylineOptions()
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                if (location != null) {
                     val ubicacion = LatLng(location.latitude, location.longitude)
                     mMap.addMarker(
                         MarkerOptions().position(ubicacion)
@@ -308,12 +325,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     )
                     start = "${location.longitude},${location.latitude}"
                     mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacion))
-                    isFirstLaunch = false // set it to false after moving the camera initially
                 }
             }
 
-            lifecycleScope.launch {
-                locationService.getRoute(this@MapsActivity, mMap)
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult) {
+                    locationResult.locations.forEach { location ->
+                        // Obtén la nueva ubicación
+                        val latLng = LatLng(location.latitude, location.longitude)
+                        start = "${location.longitude},${location.latitude}";
+
+                        // Agrega el punto a PolylineOptions
+                        polylineOptions.add(latLng)
+
+                        // Dibuja el Polyline en el mapa
+                        mMap.addPolyline(polylineOptions)
+
+
+                        // Mueve la cámara al nuevo punto
+                        if(binding.mover.isChecked)
+                        {
+                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+                        }
+                    }
+                }
+            }
+
+            val locationRequest = LocationRequest.create().apply {
+                interval = 10000 // Intervalo de actualización de ubicación en milisegundos
+                fastestInterval = 5000
+                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            }
+
+            val builder = LocationSettingsRequest.Builder()
+                .addLocationRequest(locationRequest)
+
+            // Verifica la configuración de ubicación
+            val client = LocationServices.getSettingsClient(this)
+            val task = client.checkLocationSettings(builder.build())
+
+            task.addOnSuccessListener {
+                // Configuración de ubicación aceptada, comienza la actualización
+                fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
             }
 
         } else {
@@ -352,4 +405,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
+
+
 }

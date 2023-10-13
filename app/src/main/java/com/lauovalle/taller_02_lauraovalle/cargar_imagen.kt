@@ -98,14 +98,12 @@ class cargar_imagen : AppCompatActivity() {
                 val pickVideoIntent = Intent(Intent.ACTION_PICK, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
                 pickMedia.launch(pickVideoIntent)
 
-                //pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
             }
             else{
                 binding.imageView.visibility = View.VISIBLE
                 binding.videoView.visibility = View.INVISIBLE
                 val pickImageIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
                 pickMedia.launch(pickImageIntent)
-                //pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
         }
 
